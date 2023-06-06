@@ -18,6 +18,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final _pagniationController = PagniationController();
+  var _searchQuery = '';
 
   @override
   void dispose() {
@@ -37,16 +38,33 @@ class _MyHomePageState extends State<MyHomePage> {
             },
             icon: const Icon(Icons.refresh),
           ),
+          Expanded(
+            child: TextField(
+              onSubmitted: (value) {
+                print('Submitted');
+                _searchQuery = value;
+                _pagniationController.refreshDataList();
+              },
+              onChanged: (value) {
+                if (value.trim().isEmpty && _searchQuery.trim().isNotEmpty) {
+                  _searchQuery = '';
+                  _pagniationController.refreshDataList();
+                }
+              },
+            ),
+          )
         ],
       ),
       body: PagniationListView<Post>(
         options: PagniationOptions(
           loadingMoreErrorHandler: (error) {
+            print(error);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(error.toString()),
             ));
           },
           initErrorHandler: (error) {
+            print(error.toString());
             return Text(error.toString());
           },
           initLoadingIndicatorWidget: const Center(
@@ -58,13 +76,16 @@ class _MyHomePageState extends State<MyHomePage> {
           controller: _pagniationController,
         ),
         loadData: (page) async {
-          const baseUrl = 'https://almurtakb.store//wp-json/wp/v2';
+          const baseUrl = 'https://www.sonymusic.com/wp-json/wp/v2';
           const limit = 10;
           final response = await http.get(
             Uri.parse(
-              '$baseUrl/posts?context=embed&per_page=$limit&page=$page',
+              '$baseUrl/posts?context=embed&per_page=$limit&page=$page&search=$_searchQuery',
             ),
           );
+          if (response.statusCode == 400) {
+            return [];
+          }
           final jsonResponseBody = jsonDecode(response.body) as List<dynamic>;
           final responseBody =
               jsonResponseBody.map((e) => Post.fromJson(e)).toList();
@@ -84,7 +105,7 @@ class _MyHomePageState extends State<MyHomePage> {
           return responseBody;
         },
         itemBuilder: (context, index, dynamicItem) {
-          final item = dynamicItem;
+          final item = dynamicItem as Post;
           return ListTile(
             title: Text(item.title.rendered),
             subtitle: Text(item.id.toString()),
